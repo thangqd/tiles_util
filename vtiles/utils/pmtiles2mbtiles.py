@@ -9,7 +9,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def pmtiles_to_mbtiles(input, output):
+def pmtiles_to_mbtiles(input, output, verbose=False):
     conn = sqlite3.connect(output)
     cursor = conn.cursor()
     cursor.execute("CREATE TABLE metadata (name text, value text);")
@@ -64,7 +64,7 @@ def pmtiles_to_mbtiles(input, output):
             )
 
         tile_count = sum(1 for _ in all_tiles(source))
-        for zxy, tile_data in tqdm(all_tiles(source), total=tile_count, desc="Converting tiles"):
+        for zxy, tile_data in tqdm(all_tiles(source), total=tile_count, desc="Converting tiles", disable=not verbose):
             flipped_y = (1 << zxy[0]) - 1 - zxy[2]
             cursor.execute(
                 "INSERT INTO tiles VALUES(?,?,?,?)",
@@ -78,6 +78,7 @@ def main():
     parser = argparse.ArgumentParser(description='Convert PMTiles to MBTiles.')
     parser.add_argument('input', help='Path to the input PMTiles file.')
     parser.add_argument('-o', '--output', help='Path to the output MBTiles file.')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Show progress bar')
     
     args = parser.parse_args()
     if not os.path.exists(args.input):
@@ -103,7 +104,7 @@ def main():
             sys.exit(1)          
 
     logging.info(f'Converting {input_file_abspath} to {output_file_abspath}.')
-    pmtiles_to_mbtiles(input_file_abspath, output_file_abspath)
+    pmtiles_to_mbtiles(input_file_abspath, output_file_abspath, args.verbose)
     logging.info(f'Converting PMTiles to MBTiles done!')
 
 if __name__ == "__main__":

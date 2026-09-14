@@ -42,7 +42,7 @@ def get_max_zoom(mbtiles):
         cursor.close()
         conn.close()
 
-def convert_mbtiles_to_folder(mbtiles, output_folder, flipy, min_zoom=0, max_zoom=None):
+def convert_mbtiles_to_folder(mbtiles, output_folder, flipy, min_zoom=0, max_zoom=None, verbose=False):
     conn = sqlite3.connect(mbtiles)
     cursor = conn.cursor()
     
@@ -58,7 +58,7 @@ def convert_mbtiles_to_folder(mbtiles, output_folder, flipy, min_zoom=0, max_zoo
     cursor.execute('SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE zoom_level BETWEEN ? AND ? ORDER BY zoom_level', (min_zoom, max_zoom))
     tiles = cursor.fetchall()
 
-    for zoom, col, row, tile_data in tqdm(tiles, unit=' tiles ', desc='Processing tiles'):
+    for zoom, col, row, tile_data in tqdm(tiles, unit=' tiles ', desc='Processing tiles', disable=not verbose):
         # Flip the Y coordinate if flipy is True
         y = flip_y(zoom, row) if flipy else row
 
@@ -88,6 +88,7 @@ def main():
     parser.add_argument('-flipy', type=int, default=0, choices=[0, 1], help='TMS <--> XYZ tiling scheme (optional): 1 or 0, default is 0')
     parser.add_argument('-minzoom', type=int, default=0, help='Min zoom to export (optional, default is 0)')
     parser.add_argument('-maxzoom', type=int, default=None, help='Max zoom to export (optional, default is the maxzoom of the input MBTiles)')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Show progress bar')
 
     args = parser.parse_args()
 
@@ -111,7 +112,7 @@ def main():
 
     # Inform the user of the conversion
     logging.info(f'Converting {input_filename_abspath} to {output_folder_abspath} folder.')
-    convert_mbtiles_to_folder(input_filename_abspath, output_folder_abspath, args.flipy, args.minzoom, args.maxzoom)
+    convert_mbtiles_to_folder(input_filename_abspath, output_folder_abspath, args.flipy, args.minzoom, args.maxzoom, args.verbose)
 
 if __name__ == "__main__":
     main()

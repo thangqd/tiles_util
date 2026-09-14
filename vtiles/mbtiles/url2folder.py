@@ -25,11 +25,11 @@ def download_tile(z, x, y, url_template, output_folder, format, pbar):
     except requests.exceptions.RequestException as e:
         logger.error(f"Error downloading tile {z}/{x}/{y}: {str(e)}")
 
-def download_tiles(url, output_folder, minzoom, maxzoom, format):
+def download_tiles(url, output_folder, minzoom, maxzoom, format, verbose=False):
     """Download all tiles from minzoom to maxzoom in a structured folder with a progress bar."""
     total_tiles = sum((2 ** z) ** 2 for z in range(minzoom, maxzoom + 1))
     chunk_size = 10  # Set the chunk size
-    with tqdm(total=total_tiles, desc="Processing tiles", unit="tiles ") as pbar:
+    with tqdm(total=total_tiles, desc="Processing tiles", unit="tiles ", disable=not verbose) as pbar:
         for z in range(minzoom, maxzoom + 1):
             num_tiles = 2 ** z
             tile_downloads = []  # List to hold the tile download tasks
@@ -64,6 +64,7 @@ def main():
     parser.add_argument('-minzoom', type=int, default=0, help='Min zoom to export (optional, default is 0)')
     parser.add_argument('-maxzoom', type=int, default=8, help='Max zoom to export (optional, default is 8')
     parser.add_argument('-format', type=str, required=True, choices=['pbf', 'png', 'jpg', 'jpeg', 'webp', 'pbf', 'mvt'], help='tile format from the URL')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Show progress bar')
 
     args = parser.parse_args()
     
@@ -81,7 +82,7 @@ def main():
 
     # Inform the user of the conversion
     logging.info(f'Downloading tiles from  {args.url} to {output_folder_abspath} folder.')
-    download_tiles(args.url, output_folder_abspath,args.minzoom, args.maxzoom, args.format)
+    download_tiles(args.url, output_folder_abspath,args.minzoom, args.maxzoom, args.format, args.verbose)
     logging.info(f'Downloading tiles done!')
 
 

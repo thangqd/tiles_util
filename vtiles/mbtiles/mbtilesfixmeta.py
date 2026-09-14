@@ -2,7 +2,7 @@
 # https://github.com/mapbox/mbtiles-spec/blob/master/1.3/spec.md
 # https://github.com/mapbox/tippecanoe/blob/master/main.cpp#L2033
 
-import os,sys, sqlite3, json
+import os, sys, argparse, sqlite3, json
 from vtiles.utils.geopreocessing import check_vector, determine_tileformat,\
                                          get_zoom_levels,get_bounds_center, decode_tile_data
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -55,7 +55,7 @@ def merge_layer_dicts(layers_accumulated, new_layers):
             layers_accumulated[name]['minzoom'] = min(layers_accumulated[name]['minzoom'], layer['minzoom'])
             layers_accumulated[name]['maxzoom'] = max(layers_accumulated[name]['maxzoom'], layer['maxzoom'])
 
-def get_layers_from_all_tiles_parallel(mbtiles_file, batch_size=10000, workers=4):
+def get_layers_from_all_tiles_parallel(mbtiles_file, batch_size=10000, workers=4, verbose=False):
     """Extract layer information from all tiles in the MBTiles file."""
     conn = sqlite3.connect(mbtiles_file)
     cursor = conn.cursor()
@@ -67,7 +67,7 @@ def get_layers_from_all_tiles_parallel(mbtiles_file, batch_size=10000, workers=4
     layers = {}
     offset = 0
 
-    with tqdm(total=total_tiles, desc="Processing tiles") as pbar:
+    with tqdm(total=total_tiles, desc="Processing tiles", disable=not verbose) as pbar:
         with ProcessPoolExecutor(max_workers=workers) as executor:
             futures = []
             # Process tiles in parallel batches
@@ -104,7 +104,7 @@ def get_layers_from_all_tiles_parallel(mbtiles_file, batch_size=10000, workers=4
         })
     return json_output
 
-def fix_vectormetadata(input_mbtiles, compression_type, desc):
+def fix_vectormetadata(input_mbtiles, compression_type, desc, verbose=False):
     conn = sqlite3.connect(input_mbtiles)       
     cursor = conn.cursor()
     cursor.execute('CREATE TABLE IF NOT EXISTS metadata (name TEXT, value TEXT);')
@@ -138,7 +138,7 @@ def fix_vectormetadata(input_mbtiles, compression_type, desc):
     print('Updating json vector_layers')
     batch_size=10000
     workers=4
-    layers_json = get_layers_from_all_tiles_parallel(input_mbtiles,batch_size,workers)
+    layers_json = get_layers_from_all_tiles_parallel(input_mbtiles,batch_size,workers,verbose)
     layers_json_str = json.dumps(layers_json)
     if layers_json_str:
         cursor.execute("INSERT OR REPLACE INTO metadata (name, value) VALUES (?, ?)", ('json', layers_json_str))
@@ -178,17 +178,18 @@ def fix_rastermetadata(input_mbtiles, format,desc):
     conn.close() 
 
 def main():
-    if len(sys.argv) != 2:
-      logger.error("Please provide the MBTiles input filename.")
-      sys.exit(1)
-    input_mbtiles = sys.argv[1]
+    parser = argparse.ArgumentParser(description='Create or update metadata for an existing MBTiles file.')
+    parser.add_argument('input', help='Path to the MBTiles file.')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Show progress bar')
+    args = parser.parse_args()
+    input_mbtiles = args.input
     
     if (os.path.exists(input_mbtiles)):
         is_vector, compression_type = check_vector(input_mbtiles) 
         tile_format = determine_tileformat(input_mbtiles)
         desc = 'Update metadata by vtiles.mbtiles.mbtilesfixmeta' 
         if is_vector:
-            fix_vectormetadata(input_mbtiles, compression_type,desc)   
+            fix_vectormetadata(input_mbtiles, compression_type,desc, args.verbose)   
         else:
             fix_rastermetadata(input_mbtiles, tile_format,desc)        
     else: 

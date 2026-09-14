@@ -34,11 +34,11 @@ def process_metadata(metadata_json, layers_to_keep, exclude=False):
     return metadata_json
 
 
-def process_mbtiles(input_mbtiles, output_mbtiles, layers_to_keep, keep_layers=True):
+def process_mbtiles(input_mbtiles, output_mbtiles, layers_to_keep, keep_layers=True, verbose=False):
     is_vector, compression_type = check_vector(input_mbtiles) 
     desc = 'Update metadata by vtiles.mbtiles.mbtilesfixmeta' 
     if is_vector:
-        fix_vectormetadata(input_mbtiles, compression_type,desc)    
+        fix_vectormetadata(input_mbtiles, compression_type,desc, verbose)    
         shutil.copyfile(input_mbtiles, output_mbtiles)    
         with sqlite3.connect(output_mbtiles) as conn:
             cursor = conn.cursor()
@@ -77,7 +77,7 @@ def process_mbtiles(input_mbtiles, output_mbtiles, layers_to_keep, keep_layers=T
                     in_cursor.execute("SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles ORDER BY zoom_level")
                     tiles = in_cursor.fetchall()
                     
-                    for zoom_level, tile_column, tile_row, tile_data in tqdm(tiles, desc="Processing tiles", unit=" tiles"):
+                    for zoom_level, tile_column, tile_row, tile_data in tqdm(tiles, desc="Processing tiles", unit=" tiles", disable=not verbose):
                         if tile_data[:2] == b'\x1f\x8b':
                             tile_data = gzip.decompress(tile_data)
                         elif tile_data[:2] in [b'\x78\x9c', b'\x78\x01', b'\x78\xda']:
@@ -124,6 +124,7 @@ def main():
     parser.add_argument('input', help='Path to the input MBTiles file.')
     parser.add_argument('-o', '--output', help='Path to the output splitted MBTiles file.')
     parser.add_argument("-l", "--layers", nargs='+', required=True, help="List of layer names to be splitted")
+    parser.add_argument('-v', '--verbose', action='store_true', help='Show progress bar')
 
     args = parser.parse_args()
     if not os.path.exists(args.input):
@@ -148,10 +149,17 @@ def main():
             logger.error(f'Output MBTiles  {output_file_abspath} already exists! Please recheck and input a correct one. Ex: -o tiles.mbtiles')
             sys.exit(1)          
     
+    remaining_output = os.path.join(
+        os.path.dirname(output_file_abspath),
+        os.path.basename(input_file_abspath).replace('.mbtiles', '_remained.mbtiles')
+    )
+    if os.path.exists(remaining_output):
+        logger.error(f'Output MBTiles  {remaining_output} already exists!. Please recheck and input a correct one.')
+        sys.exit(1)
+
     logger.info(f'Splitting {input_file_abspath} to {output_file_abspath}')
-    process_mbtiles(input_file_abspath, output_file_name, args.layers, keep_layers=True)
-    remaining_output = os.path.basename(input_file_abspath).replace('.mbtiles', '_remained.mbtiles')
-    process_mbtiles(input_file_abspath, remaining_output, args.layers, keep_layers=False)
+    process_mbtiles(input_file_abspath, output_file_abspath, args.layers, keep_layers=True, verbose=args.verbose)
+    process_mbtiles(input_file_abspath, remaining_output, args.layers, keep_layers=False, verbose=args.verbose)
     logger.info('Splitting MBTiles done!')
 
 if __name__ == "__main__":

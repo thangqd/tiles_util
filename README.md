@@ -29,12 +29,13 @@
 Ex: `> mbtilesinspect tiles.mbtiles`
 
 #### mbtilesdelduplicate
-- Inspect MBTiles in actual tiles data instead of reading from metadata: 
-- **mbtilesinspect** can show minzoom, maxzoom, total number of tiles, tile compression type, number of tiles comparing to standard tiles number at each zoom level, and it can show the duplicated rows in terms of zoom_level, tile_column, and tile_row
+- Remove duplicate tiles from an MBTiles file (same `zoom_level`, `tile_column`, and `tile_row`). Keeps the first occurrence of each tile and adds a unique index to prevent future duplicates.
   ``` bash 
-  > mbtilesinspect <file_path>
+  > mbtilesdelduplicate <input file> -o [output file (optional)]
   ```
-Ex: `> mbtilesinspect tiles.mbtiles`
+Ex: `> mbtilesdelduplicate tiles.mbtiles -o tiles_clean.mbtiles`
+
+  Without `-o`, the output is saved as `{input}_delduplicate.mbtiles` in the same folder as the input file.
 
 
 #### mbtiles2folder
@@ -63,9 +64,9 @@ Ex: `> mbtilesinspect tiles.mbtiles`
 #### mbtiles2geojson
 - Convert MBTiles to GeoJSON.
   ``` bash 
-  > mbtiles2geojson  <input file> -o <Output GeoJSON> -zoom <zoom level> -flipy [TMS <--> XYZ tiling scheme (optional): 1 or 0, default is 0] -l [List of layer names to convert, all layers if not specified]
+  > mbtiles2geojson  <input file> -o <Output GeoJSON> -z <zoom level> -flipy [TMS <--> XYZ tiling scheme (optional): 1 or 0, default is 0] -l [List of layer names to convert, all layers if not specified]
   ```
-  Ex: `> mbtiles2geojson  tiles.mbtiles -o geojson.geojson -zoom 0 -flipy 0 -l water building`
+  Ex: `> mbtiles2geojson  tiles.mbtiles -o geojson.geojson -z 0 -flipy 0 -l water building`
 
 #### geoson2mbtiles
 - Convert geojson file to mbtiles (need tippecanoe to be installed)

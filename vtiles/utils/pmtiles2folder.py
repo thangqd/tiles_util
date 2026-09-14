@@ -7,7 +7,7 @@ from tqdm import tqdm
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger(__name__)
 
-def pmtiles_to_folder(input_file, output_folder):   
+def pmtiles_to_folder(input_file, output_folder, verbose=False):   
     with open(input_file, "r+b") as f:
         source = MmapSource(f)
         reader = Reader(source)
@@ -20,7 +20,7 @@ def pmtiles_to_folder(input_file, output_folder):
         total_tiles = len(list(all_tiles(source)))
         
         # Iterate over all tiles and write them to the output folder
-        for zxy, tile_data in tqdm(all_tiles(source), total=total_tiles, desc="Processing tiles"):
+        for zxy, tile_data in tqdm(all_tiles(source), total=total_tiles, desc="Processing tiles", disable=not verbose):
             z, x, y = zxy
             directory = os.path.join(output_folder, str(z), str(x))
             os.makedirs(directory, exist_ok=True)
@@ -32,6 +32,7 @@ def main():
     parser = argparse.ArgumentParser(description='Convert PMTiles to tiles folder')
     parser.add_argument('input', help='Input PMTiles file path')
     parser.add_argument('-o', '--output',help='Output directory path')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Show progress bar')
     args = parser.parse_args()
 
     if not os.path.exists(args.input):
@@ -54,7 +55,7 @@ def main():
 
     # Inform the user of the conversion
     logging.info(f'Converting {input_filename_abspath} to {output_folder_abspath} folder.')
-    pmtiles_to_folder(input_filename_abspath, output_folder_abspath)
+    pmtiles_to_folder(input_filename_abspath, output_folder_abspath, args.verbose)
 
 
 if __name__ == "__main__":

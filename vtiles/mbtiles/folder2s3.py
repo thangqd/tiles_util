@@ -24,11 +24,11 @@ def upload_file(bucket_name, local_file_path, s3_key, content_type=None, content
         logging.error(f"Error uploading {local_file_path} to {s3_key}: {e}")
         return False
 
-def upload_files(bucket_name, input_folder, s3_prefix='', content_type=None, content_encoding=None):
+def upload_files(bucket_name, input_folder, s3_prefix='', content_type=None, content_encoding=None, verbose=False):
     total_files = sum(len(files) for _, _, files in os.walk(input_folder))
     num_cores = multiprocessing.cpu_count()
 
-    with tqdm(total=total_files, desc="Uploading", unit="files ") as pbar:
+    with tqdm(total=total_files, desc="Uploading", unit="files ", disable=not verbose) as pbar:
         with ThreadPoolExecutor(max_workers=num_cores*2) as executor:
             futures = []
             for root, _, files in os.walk(input_folder):
@@ -43,7 +43,7 @@ def upload_files(bucket_name, input_folder, s3_prefix='', content_type=None, con
             for future in futures:
                 future.result()
 
-def folder2s3(input_folder, format='', bucket_name='', s3_prefix='', aws_access_key_id=None, aws_secret_access_key=None, aws_region=None):
+def folder2s3(input_folder, format='', bucket_name='', s3_prefix='', aws_access_key_id=None, aws_secret_access_key=None, aws_region=None, verbose=False):
     session = boto3.Session(
         region_name=aws_region,
         aws_access_key_id=aws_access_key_id,
@@ -60,9 +60,9 @@ def folder2s3(input_folder, format='', bucket_name='', s3_prefix='', aws_access_
     try:
         logging.info(f'Uploading folder {input_folder} to S3 bucket: {bucket_name}.Press Ctrl+C to cancel')
         if format == 'pbf' or format == 'mvt' :
-            upload_files(bucket_name, input_folder, s3_prefix, 'application/x-protobuf', 'gzip')
+            upload_files(bucket_name, input_folder, s3_prefix, 'application/x-protobuf', 'gzip', verbose)
         else:
-            upload_files(bucket_name, input_folder, s3_prefix)
+            upload_files(bucket_name, input_folder, s3_prefix, verbose=verbose)
         logging.info('Uploading folder to S3 done!')
     except Exception as e:
         logging.error(f"Error uploading folder to S3: {e}")
@@ -72,6 +72,7 @@ def main():
     parser = argparse.ArgumentParser(description='Upload a tiles folder to S3.')
     parser.add_argument('input', type=str, help='The tiles folder to upload.')
     parser.add_argument('-format', type=str, required=True, choices=['pbf', 'mvt', 'png', 'jpg', 'jpeg', 'webp'], help='format of the files to upload.')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Show progress bar')
     args = parser.parse_args()
 
     input_folder = args.input
@@ -105,7 +106,7 @@ def main():
     if not aws_region:
         aws_region = None
 
-    folder2s3(input_folder_abspath, format, s3_bucket_name, s3_prefix, aws_access_key_id, aws_secret_access_key, aws_region)
+    folder2s3(input_folder_abspath, format, s3_bucket_name, s3_prefix, aws_access_key_id, aws_secret_access_key, aws_region, args.verbose)
 
 if __name__ == "__main__":
     main()

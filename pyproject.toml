@@ -1,0 +1,86 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vtiles"
+version = "1.0.8"
+description = "Vector Tiles Utilities"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+keywords = ["vtiles", "vector-tiles", "mbtiles", "pmtiles"]
+authors = [
+    {name = "Thang Quach", email = "quachdongthang@gmail.com"}
+]
+urls = {Homepage = "https://github.com/opengeoshub/vtiles"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Environment :: Console",
+    "Topic :: Scientific/Engineering :: GIS",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "tqdm~=4.70.1",
+    "boto3~=1.43.93",
+    "requests~=2.34.2",
+    "click~=8.5.0",
+    "fiona~=1.10.1",
+    "shapely~=2.1.2",
+    "protobuf~=7.36.1",
+    "pillow~=12.3.0",
+    "pyclipper~=1.4.0",
+]
+
+[project.scripts]
+mbtilesinfo = "vtiles.mbtiles.mbtilesinfo:main"
+mbtilesinspect = "vtiles.mbtiles.mbtilesinspect:main"
+mbtilesdelduplicate = "vtiles.mbtiles.mbtilesdelduplicate:main"
+
+mbtiles2folder = "vtiles.mbtiles.mbtiles2folder:main"
+folder2mbtiles = "vtiles.mbtiles.folder2mbtiles:main"
+url2folder = "vtiles.mbtiles.url2folder:main"
+mbtiles2geojson = "vtiles.mbtiles.mbtiles2geojson:main"
+geojson2mbtiles = "vtiles.mbtiles.geojson2mbtiles:main"
+mbtiles2s3 = "vtiles.mbtiles.mbtiles2s3:main"
+folder2s3 = "vtiles.mbtiles.folder2s3:main"
+mbtiles2pbf = "vtiles.mbtiles.mbtiles2pbf:main"
+
+mbtilessplit = "vtiles.mbtiles.mbtilessplit:main"
+mbtilesmerge = "vtiles.mbtiles.mbtilesmerge:main"
+mbtilesdecompress = "vtiles.mbtiles.mbtilesdecompress:main"
+mbtilescompress = "vtiles.mbtiles.mbtilescompress:main"
+mbtilesfixmeta = "vtiles.mbtiles.mbtilesfixmeta:main"
+
+tileinfo = "vtiles.mbtiles.tileinfo:main"
+tile2geojson = "vtiles.mbtiles.tile2geojson:main"
+flipy = "vtiles.mbtiles.flipy:main"
+mbtiles2pmtiles = "vtiles.mbtiles.mbtiles2pmtiles:main"
+
+servefolder = "vtiles.server.servefolder:main"
+servepostgis = "vtiles.server.servepostgis:main"
+servembtiles = "vtiles.server.servembtiles:main"
+serverastermbtiles = "vtiles.server.serverastermbtiles:main"
+servevectormbtiles = "vtiles.server.servevectormbtiles:main"
+servepmtiles = "vtiles.server.servepmtiles:main"
+tilesinspect = "vtiles.server.tilesinspect.tilesinspect:main"
+pmtilesinspect = "vtiles.server.pmtilesinspect.pmtilesinspect:main"
+
+pmtilesinfo = "vtiles.utils.pmtilesinfo:main"
+pmtiles2folder = "vtiles.utils.pmtiles2folder:main"
+pmtiles2mbtiles = "vtiles.utils.pmtiles2mbtiles:main"
+vtpk2folder = "vtiles.utils.vtpk2folder:main"
+centerline = "vtiles.utils.centerline:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["vtiles"]
+only-include = ["vtiles"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/vtiles",
+    "/README.md",
+    "/LICENSE",
+    "/pyproject.toml",
+]

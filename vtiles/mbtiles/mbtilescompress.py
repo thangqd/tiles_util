@@ -20,7 +20,7 @@ def compress_tile_data(tile_data):
         return tile_data
     return tile_data          
 
-def compress_mbtiles(input_mbtiles, output_mbtiles, batch_size=10000):
+def compress_mbtiles(input_mbtiles, output_mbtiles, batch_size=10000, verbose=False):
     shutil.copyfile(input_mbtiles, output_mbtiles)
     
     # Open the copied MBTiles file
@@ -65,7 +65,7 @@ def compress_mbtiles(input_mbtiles, output_mbtiles, batch_size=10000):
         tiles = cursor.fetchall()
         
         batch = []
-        for zoom_level, tile_column, tile_row, tile_data in tqdm(tiles, desc="Compressing tiles", unit="tile"):
+        for zoom_level, tile_column, tile_row, tile_data in tqdm(tiles, desc="Compressing tiles", unit="tile", disable=not verbose):
             try:
                 compressed_tile = compress_tile_data(tile_data)
                 batch.append((zoom_level, tile_column, tile_row, compressed_tile))
@@ -100,7 +100,7 @@ def compress_mbtiles(input_mbtiles, output_mbtiles, batch_size=10000):
         tiles = cursor.fetchall()
         
         # Process the tiles in batches
-        process_tiles(tqdm(tiles, desc="Compressing tiles", unit="tile"))
+        process_tiles(tqdm(tiles, desc="Compressing tiles", unit="tile", disable=not verbose))
     
     # Commit and close connections
     conn.commit()
@@ -110,6 +110,7 @@ def main():
     parser = argparse.ArgumentParser(description='Compress Vector MBTiles file with GZIP.')
     parser.add_argument('input', help='Path to the input MBTiles file.')
     parser.add_argument('-o', '--output', help='Path to the output MBTiles file.')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Show progress bar')
 
     args = parser.parse_args()
     if not os.path.exists(args.input):
@@ -138,7 +139,7 @@ def main():
     is_vector, _ = check_vector(args.input)
     if is_vector:
         logging.info(f'Compressing {input_file_abspath} to {output_file_abspath}.') 
-        compress_mbtiles(input_file_abspath, output_file_abspath)
+        compress_mbtiles(input_file_abspath, output_file_abspath, verbose=args.verbose)
     else:
         logging.warning(f'mbtilescompress only supports vector MBTiles. {input_file_abspath} is not a vector MBTiles.')
         sys.exit(1)

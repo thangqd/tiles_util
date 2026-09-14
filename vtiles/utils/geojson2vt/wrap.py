@@ -1,5 +1,5 @@
-from geojson2vt.clip import clip
-from geojson2vt.feature import Slice, create_feature
+from .clip import clip
+from .feature import Slice, create_feature
 
 
 def wrap(features, options):

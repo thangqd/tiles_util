@@ -207,10 +207,10 @@ def get_center_of_bound(bounds_str):
         logging.error(f"Get center of bound error: {e}")
         return ''
         
-def merge_mbtiles(input_mbtiles, output_mbtiles):   
+def merge_mbtiles(input_mbtiles, output_mbtiles, verbose=False):   
     is_vector, compression_type = check_vector(input_mbtiles[0]) 
     if is_vector:
-        fix_vectormetadata(input_mbtiles[0], compression_type,'')   
+        fix_vectormetadata(input_mbtiles[0], compression_type,'', verbose)   
         shutil.copyfile(input_mbtiles[0], output_mbtiles)
         try:
             conn_out = sqlite3.connect(output_mbtiles)       
@@ -249,18 +249,18 @@ def merge_mbtiles(input_mbtiles, output_mbtiles):
                     continue  # Skip the cursor for the first MBTiles file     
                 is_vector, compression_type = check_vector(input_mbtiles[0]) 
                 if is_vector:
-                    fix_vectormetadata(input_mbtiles[i], compression_type,'')
+                    fix_vectormetadata(input_mbtiles[i], compression_type,'', verbose)
                     mbtiles_name = os.path.basename(input_mbtiles[i])
                     cursor.execute('SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles ORDER BY zoom_level')
                     rows = cursor.fetchall()
-                    for (z, x, y, tile) in tqdm(rows, desc=f"Processing tiles from {mbtiles_name}"):
+                    for (z, x, y, tile) in tqdm(rows, desc=f"Processing tiles from {mbtiles_name}", disable=not verbose):
                         key = (z, x, y)
                         if key in tiles:
                             tiles[key] = merge_tiles(tiles[key], tile, z, x, y)
                         else:
                             tiles[key] = tile
 
-            for key, tile in tqdm(tiles.items(), desc="Inserting merged tiles"):
+            for key, tile in tqdm(tiles.items(), desc="Inserting merged tiles", disable=not verbose):
                 cur_out.execute('INSERT OR REPLACE INTO tiles (zoom_level, tile_column, tile_row, tile_data) VALUES (?, ?, ?, ?)', (key[0], key[1], key[2], tile))
             conn_out.commit()
             print(f"Successfully merged MBTiles files into {output_mbtiles}")
@@ -277,7 +277,7 @@ def merge_mbtiles(input_mbtiles, output_mbtiles):
 
             merged_metadata = merge_metadata(metadata_dicts)
 
-            for name, value in tqdm(merged_metadata.items(), desc=f"Inserting merged metadata"):
+            for name, value in tqdm(merged_metadata.items(), desc=f"Inserting merged metadata", disable=not verbose):
                 cur_out.execute('INSERT OR REPLACE INTO metadata (name, value) VALUES (?, ?)', (name, value))
 
             # Update format
@@ -358,6 +358,7 @@ def main():
     parser = argparse.ArgumentParser(description="Merge multiple vector MBTiles files into a single MBTiles file.")
     parser.add_argument('input', nargs='+', help='Paths to the input MBTiles files to merge.')
     parser.add_argument('-o', '--output', help='Output merged MBTiles file. Defaults to "merged.mbtiles" in the current directory.')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Show progress bar')
 
     args = parser.parse_args()
     for file in args.input:
@@ -379,7 +380,7 @@ def main():
             logger.error(f'Output MBTiles file {output_file} already exists! Please recheck and input a correct one. Ex: -o merged.mbtiles')
             sys.exit(1)          
 
-    merge_mbtiles(args.input, output_file)
+    merge_mbtiles(args.input, output_file, args.verbose)
 
 
 if __name__ == '__main__':

@@ -43,14 +43,14 @@ def get_dirs(path):
   return [name for name in os.listdir(path)
     if os.path.isdir(os.path.join(path, name))]
 
-def folder2mbtiles(input_folder, mbtiles_file, flipy=0):
+def folder2mbtiles(input_folder, mbtiles_file, flipy=0, verbose=False):
   # logger.debug("%s --> %s" % (input_folder, mbtiles_file))
   con = mbtiles_connect(mbtiles_file)
   cur = con.cursor()
   optimize_connection(cur)
   mbtiles_init(cur)  
 
-  with tqdm(desc="Coverting tiles", unit=" tiles") as pbar:
+  with tqdm(desc="Coverting tiles", unit=" tiles", disable=not verbose) as pbar:
     for zoom_dir in get_dirs(input_folder):   
       z = int(zoom_dir)
       for row_dir in get_dirs(os.path.join(input_folder, zoom_dir)):
@@ -93,7 +93,7 @@ def folder2mbtiles(input_folder, mbtiles_file, flipy=0):
     tile_format = determine_tileformat(mbtiles_file)
     desc = 'MBtiles created by vtiles.mbtiles.folder2mbtiles and metadata updated by mbtilesfixmeta' 
     if is_vector:
-        fix_vectormetadata(mbtiles_file, compression_type,desc)   
+        fix_vectormetadata(mbtiles_file, compression_type,desc, verbose)   
     else:
         fix_rastermetadata(mbtiles_file, tile_format,desc)     
    
@@ -104,6 +104,7 @@ def main():
   parser.add_argument('input', help='Input folder')
   parser.add_argument('-o','--output', default=None, help='Output mbtiles file name (optional)')
   parser.add_argument('-flipy', type=int, default=0,choices=[0, 1], help='TMS <--> XYZ tiling scheme (optional): 1 or 0, default is 0')
+  parser.add_argument('-v', '--verbose', action='store_true', help='Show progress bar')
 
   args = parser.parse_args()
 
@@ -129,7 +130,7 @@ def main():
 
   # Inform the user of the conversion
   logging.info(f'Converting {input_folder_abspath} to {output_file_abspath}.') 
-  folder2mbtiles(input_folder_abspath, output_file_abspath, args.flipy)
+  folder2mbtiles(input_folder_abspath, output_file_abspath, args.flipy, args.verbose)
 
 if __name__ == "__main__":
   main()

@@ -1,5 +1,5 @@
 import math
-from geojson2vt.feature import create_feature, Slice
+from .feature import create_feature, Slice
 
 
 r""" 

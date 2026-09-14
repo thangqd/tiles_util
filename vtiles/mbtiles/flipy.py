@@ -8,17 +8,17 @@ from vtiles.utils.geopreocessing import safe_makedir
 
 logger = logging.getLogger(__name__)
 
-def flip_y(inDIR, copyDIR):
+def flip_y(inDIR, copyDIR, verbose=False):
     # Copy all files from the root of inDIR to the root of copyDIR, including metadata.json
     root_files = [f for f in os.listdir(inDIR) if os.path.isfile(os.path.join(inDIR, f))]
-    for root_file in tqdm(root_files, desc="Copying metadata (if existed)", unit=' ', ncols=80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{percentage:.0f}%]'):
+    for root_file in tqdm(root_files, desc="Copying metadata (if existed)", unit=' ', ncols=80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{percentage:.0f}%]', disable=not verbose):
         shutil.copy(os.path.join(inDIR, root_file), os.path.join(copyDIR, root_file))
 
     # Count the total number of files to process
     total_files = sum([len(files) for rVal, dName, files in os.walk(inDIR) if rVal != inDIR])
 
     # Initialize the progress bar for nested files
-    with tqdm(total=total_files, desc="Processing files", unit=' ', ncols=80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{percentage:.0f}%]') as pbar:
+    with tqdm(total=total_files, desc="Processing files", unit=' ', ncols=80, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{percentage:.0f}%]', disable=not verbose) as pbar:
         for rVal, dName, fList in os.walk(inDIR):
             # Skip the root directory as it has already been handled
             if rVal == inDIR:
@@ -49,6 +49,7 @@ def main():
     parser = argparse.ArgumentParser(description='Convert TMS <--> XYZ tiling scheme for a tiles folder')
     parser.add_argument('input', help='Input folder containing tiles')
     parser.add_argument('-o', '--output', default=None, help='Output folder (optional)')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Show progress bar')
     args = parser.parse_args()
 
     # Validate input folder
@@ -76,7 +77,7 @@ def main():
     logging.info(f'Converting folder {input_folder_abspath} to {output_folder_abspath}')
     
     # Call the conversion function
-    flip_y(input_folder_abspath, output_folder_abspath)
+    flip_y(input_folder_abspath, output_folder_abspath, args.verbose)
 
 if __name__ == "__main__":
     main()

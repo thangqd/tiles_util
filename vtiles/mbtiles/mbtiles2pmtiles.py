@@ -52,7 +52,7 @@ def mbtiles_to_header_json(mbtiles_metadata):
 
     return header, mbtiles_metadata
 
-def mbtiles_to_pmtiles(input, output):
+def mbtiles_to_pmtiles(input, output, verbose=False):
     try: 
         conn = sqlite3.connect(input)
         cursor = conn.cursor()
@@ -77,7 +77,7 @@ def mbtiles_to_pmtiles(input, output):
             is_pbf = mbtiles_metadata["format"] == "pbf"
 
             # query the db in ascending tile order
-            for tileid in tqdm(tileid_set, desc="Converting tiles"):
+            for tileid in tqdm(tileid_set, desc="Converting tiles", disable=not verbose):
                 z, x, y = tileid_to_zxy(tileid)
                 flipped = (1 << z) - 1 - y
                 res = cursor.execute(
@@ -109,6 +109,7 @@ def main():
     parser = argparse.ArgumentParser(description='Convert MBTiles to PMTiles.')
     parser.add_argument('input', help='Path to the input MBTiles file.')
     parser.add_argument('-o', '--output', help='Path to the output PMTiles file.')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Show progress bar')
     
     args = parser.parse_args()
     if not os.path.exists(args.input):
@@ -137,12 +138,12 @@ def main():
     tile_format = determine_tileformat(input_file_abspath)
     desc = 'Update metadata by vtiles.mbtiles.fixmeta' 
     if is_vector:
-        fix_vectormetadata(input_file_abspath, compression_type,desc)   
+        fix_vectormetadata(input_file_abspath, compression_type,desc, args.verbose)   
     else:
         fix_rastermetadata(input_file_abspath, tile_format,desc)        
 
     logging.info(f'Converting {input_file_abspath} to {output_file_abspath}.')
-    mbtiles_to_pmtiles(input_file_abspath, output_file_abspath)
+    mbtiles_to_pmtiles(input_file_abspath, output_file_abspath, args.verbose)
 
 if __name__ == "__main__":
     main()

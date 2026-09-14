@@ -63,6 +63,44 @@ def add_tile_to_mbtiles(mbtiles_file, z, x, y, tile_data):
             conn.close()
 
 
+GEOJSON_TYPES = {
+    'FeatureCollection', 'Feature',
+    'Point', 'MultiPoint', 'LineString', 'MultiLineString',
+    'Polygon', 'MultiPolygon', 'GeometryCollection',
+}
+
+
+def extract_layers(geojson_data, default_layer_name):
+    """Return {layer_name: FeatureCollection} from standard or layer-keyed GeoJSON."""
+    if not isinstance(geojson_data, dict):
+        raise ValueError('Input data is not a valid GeoJSON object.')
+
+    geojson_type = geojson_data.get('type')
+    if geojson_type in GEOJSON_TYPES:
+        return {default_layer_name: _as_feature_collection(geojson_data)}
+
+    layers = {}
+    for name, value in geojson_data.items():
+        if isinstance(value, dict) and value.get('type') in GEOJSON_TYPES:
+            layers[name] = _as_feature_collection(value)
+
+    if not layers:
+        raise ValueError('Input data is not a valid GeoJSON object.')
+    return layers
+
+
+def _as_feature_collection(geojson):
+    geojson_type = geojson.get('type')
+    if geojson_type == 'FeatureCollection':
+        return geojson
+    if geojson_type == 'Feature':
+        return {'type': 'FeatureCollection', 'features': [geojson]}
+    return {
+        'type': 'FeatureCollection',
+        'features': [{'type': 'Feature', 'geometry': geojson, 'properties': {}}]
+    }
+
+
 def transform_to_layer(data, layer_name):
     """
     Transforms the input dictionary into a list format with a specified layer name.
@@ -126,6 +164,7 @@ def main():
     parser.add_argument('-z', '--zoom', type=int, default=0, help="Zoom level for the tile.")
     parser.add_argument('-x', '--x', type=int, default=0, help="Tile column.")
     parser.add_argument('-y', '--y', type=int, default=0, help="Tile row.")
+    parser.add_argument('-v', '--verbose', action='store_true', help='Show progress bar')
     
     args = parser.parse_args()
     if not os.path.exists(args.input):
@@ -152,38 +191,51 @@ def main():
 
     logging.info(f'Converting {input_file_abspath} to {output_file_abspath}.')
 
-    # Read the input GeoJSON file
     with open(input_file_abspath, 'r',encoding='utf-8') as f:
         geojson_data = json.load(f)
 
-    layer_name = os.path.basename(input_file_abspath)
-    # Define tile coordinates
+    default_layer_name = os.path.splitext(os.path.basename(input_file_abspath))[0]
+    try:
+        layers = extract_layers(geojson_data, default_layer_name)
+    except ValueError as e:
+        logger.error(str(e))
+        sys.exit(1)
+
     z, x, y = args.zoom, args.x, args.y
+    max_zoom = max(z, 5)
+    tile_options = {
+        'maxZoom': max_zoom,
+        'tolerance': 3,
+        'extent': 4096,
+        'buffer': 64,
+        'lineMetrics': False,
+        'promoteId': None,
+        'generateId': False,
+        'indexMaxZoom': max_zoom,
+        'indexMaxPoints': 100000
+    }
 
-    # Create MBTiles file
-    create_mbtiles(output_file_abspath)
-    tile_index = geojson2vt(geojson_data, {
-	'maxZoom': 5,  # max zoom to preserve detail on; can't be higher than 24
-	'tolerance': 3, # simplification tolerance (higher means simpler)
-	'extent': 4096, # tile extent (both width and height)
-	'buffer': 64,   # tile buffer on each side
-	'lineMetrics': False, # whether to enable line metrics tracking for LineString/MultiLineString features
-	'promoteId': None,    # name of a feature property to promote to feature.id. Cannot be used with `generateId`
-	'generateId': False,  # whether to generate feature ids. Cannot be used with `promoteId`
-	'indexMaxZoom': 5,       # max zoom in the initial tile index
-	'indexMaxPoints': 100000 # max number of points per tile in the index
-    }, logging.INFO)
+    encoded_layers = []
+    for layer_name, layer_geojson in layers.items():
+        tile_index = geojson2vt(layer_geojson, tile_options, logging.INFO)
+        tile_data = tile_index.get_tile(z, x, y)
+        if not tile_data or not tile_data.get('features'):
+            logger.warning(f'No features for layer {layer_name} at tile {z}/{x}/{y}')
+            continue
+        encoded_layers.extend(transform_to_layer(tile_data, layer_name))
 
-    tile_data = tile_index.get_tile(0,0,0)
-    tile_data_fixed = transform_to_layer(tile_data,layer_name)
-    tile_data_fixed_encoded = encode(tile_data_fixed)
+    if not encoded_layers:
+        logger.error(f'No features found at tile {z}/{x}/{y}.')
+        sys.exit(1)
+
+    tile_data_fixed_encoded = encode(encoded_layers)
     tile_data_fixed_encoded_compressed = gzip.compress(tile_data_fixed_encoded)
 
+    create_mbtiles(output_file_abspath)
     add_tile_to_mbtiles(output_file_abspath, z, x, y, tile_data_fixed_encoded_compressed)
-    
-    name = os.path.basename(input_file_abspath)
-    desc = 'Update metadata by vtiles.mbtiles.mbtilesfixmeta' 
-    fix_vectormetadata(output_file_abspath, 'GZIP', desc) 
+
+    desc = 'Update metadata by vtiles.mbtiles.mbtilesfixmeta'
+    fix_vectormetadata(output_file_abspath, 'GZIP', desc, args.verbose)
     logging.info(f'Converting GeoJSON to MBTiles done!')
 
 

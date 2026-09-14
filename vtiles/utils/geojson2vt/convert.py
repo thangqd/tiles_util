@@ -1,7 +1,7 @@
 import math
 
-from geojson2vt.simplify import simplify
-from geojson2vt.feature import Slice, create_feature
+from .simplify import simplify
+from .feature import Slice, create_feature
 
 # converts GeoJSON feature into an intermediate projected JSON vector format with simplification data
 

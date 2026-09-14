@@ -54,7 +54,7 @@ def merge_geojsons(geojson_list):
     
     return merged_geojson
 
-def mbtiles_to_geojson(input_mbtiles, output_geojson, compression_type, zoom_level, flip_y, layers, chunk_size=1000):
+def mbtiles_to_geojson(input_mbtiles, output_geojson, compression_type, zoom_level, flip_y, layers, chunk_size=1000, verbose=False):
     """
     Convert MBTiles data to GeoJSON format in chunks.
 
@@ -88,7 +88,7 @@ def mbtiles_to_geojson(input_mbtiles, output_geojson, compression_type, zoom_lev
             if not rows:
                 more_tiles = False  # No more tiles to fetch
 
-            for x, y, tile_data in tqdm(rows, desc=f"Converting tiles at zoom level {zoom_level} to GeoJSON"):
+            for x, y, tile_data in tqdm(rows, desc=f"Converting tiles at zoom level {zoom_level} to GeoJSON", disable=not verbose):
                 if tile_data:
                     if flip_y:
                         y = (1 << zoom_level) - 1 - y
@@ -128,6 +128,7 @@ def main():
     parser.add_argument('-z','--zoom', type=int, required=True, help='Minimum tile zoom level')
     parser.add_argument('-flipy', '--flipy', type=int, choices=[0, 1], default=0, help='TMS <--> XYZ tiling scheme (optional): 1 or 0, default is 0')
     parser.add_argument('-l', '--layers', type=str, nargs='*', help='List of layer names to convert')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Show progress bar')
 
     args = parser.parse_args()
     if not os.path.exists(args.input):
@@ -156,7 +157,7 @@ def main():
     is_vector, compression_type = check_vector(args.input)
     if is_vector:
         logging.info(f'Converting {input_file_abspath} to {output_file_abspath}.') 
-        mbtiles_to_geojson(input_file_abspath, output_file_abspath,compression_type, args.zoom, args.flipy, args.layers)
+        mbtiles_to_geojson(input_file_abspath, output_file_abspath,compression_type, args.zoom, args.flipy, args.layers, verbose=args.verbose)
     else:
         logging.warning(f'mbtiles2gojson only supports vector MBTiles. {input_file_abspath} is not a vector MBTiles.')
         sys.exit(1)

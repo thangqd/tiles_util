@@ -7,12 +7,11 @@ from vtiles.utils.geopreocessing import check_vector, determine_tileformat,\
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import logging
 from tqdm import tqdm
-import texttable as tt
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def inspect_mbtiles(mbtiles):
+def inspect_mbtiles(mbtiles, verbose=False):
     is_vector, compression_type = check_vector(mbtiles) 
     tile_format = determine_tileformat(mbtiles)
     min_zoom, max_zoom = get_zoom_levels(mbtiles)
@@ -60,7 +59,7 @@ def inspect_mbtiles(mbtiles):
         print("\nListing layers at each zoom level:")
         batch_size=10000
         workers=4
-        list_layers_for_all_zoom_levels_parallel(mbtiles,batch_size,workers)
+        list_layers_for_all_zoom_levels_parallel(mbtiles,batch_size,workers,verbose)
 
 
 # Function to process a batch of tiles and extract unique layers
@@ -75,7 +74,7 @@ def process_tile_batch(tile_batch):
     return layers
 
 # Function to process all zoom levels in parallel and accumulate results
-def list_layers_for_all_zoom_levels_parallel(mbtiles_file, batch_size=10000, workers=4):
+def list_layers_for_all_zoom_levels_parallel(mbtiles_file, batch_size=10000, workers=4, verbose=False):
     # Connect to the MBTiles file (SQLite database)
     conn = sqlite3.connect(mbtiles_file)
     cursor = conn.cursor()
@@ -106,7 +105,7 @@ def list_layers_for_all_zoom_levels_parallel(mbtiles_file, batch_size=10000, wor
             futures = {executor.submit(process_tile_batch, batch): batch for batch in batches}
 
             # Use tqdm for progress tracking
-            for future in tqdm(as_completed(futures), total=len(batches), desc=f"Processing Zoom {zoom_level}"):
+            for future in tqdm(as_completed(futures), total=len(batches), desc=f"Processing Zoom {zoom_level}", disable=not verbose):
                 # Add the layers from the processed batch to the main set
                 layers.update(future.result())
 
@@ -117,42 +116,26 @@ def list_layers_for_all_zoom_levels_parallel(mbtiles_file, batch_size=10000, wor
     cursor.close()
     conn.close()
 
-        # Function to format the layers list into multiple lines based on max width
-    def format_layer_list(layer_list, max_width):
-        layer_string = ", ".join(layer_list)
-        if len(layer_string) > max_width:
-            # Use textwrap to split the layer list into multiple lines
-            return "\n".join(textwrap.wrap(layer_string, width=max_width))
-        return layer_string
-
     max_width = 80
-    # Create a texttable object
-    table = tt.Texttable()
-    table.set_cols_align(["c", "l"])  # Center align Zoom Level, Left align Layers
-    table.set_cols_valign(["m", "t"])  # Vertically align
-    table.set_cols_width([10, max_width])  # Set column widths
-
-    # Add the header row
-    table.header(["Zoom Level", "Layers"])
-
-    # Once all zoom levels are processed, accumulate the results in the table
+    print(f"{'Zoom Level':<12} {'Layers'}")
+    print("=" * 92)
     for zoom_level, layer_list in results.items():
-        # Format the layer list according to the max width, wrapping it onto new lines if necessary
-        formatted_layers = format_layer_list(layer_list, max_width)
-        table.add_row([zoom_level, formatted_layers])
-
-    # Output the final table
-    print(table.draw())
+        layer_string = ", ".join(layer_list)
+        wrapped_layers = textwrap.wrap(layer_string, width=max_width) or [""]
+        print(f"{zoom_level:<12} {wrapped_layers[0]}")
+        for continuation in wrapped_layers[1:]:
+            print(f"{'':<12} {continuation}")
 
 def main():
     parser = argparse.ArgumentParser(description='Inspect MBTiles file with analyzing tile_data in tiles table.')
     parser.add_argument('input', help='Path to the MBTiles file.')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Show progress bar')
 
     args = parser.parse_args()
     mbtiles = args.input
 
     if (os.path.exists(mbtiles)):
-       inspect_mbtiles(mbtiles)       
+       inspect_mbtiles(mbtiles, args.verbose)       
     else: 
         logger.error ('MBTiles file does not exist!. Please recheck and input a correct file path.')
         sys.exit(1)

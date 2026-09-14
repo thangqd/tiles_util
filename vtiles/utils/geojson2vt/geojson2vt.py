@@ -1,11 +1,11 @@
 import logging
 from datetime import datetime
 
-from geojson2vt.convert import convert
-from geojson2vt.clip import clip
-from geojson2vt.wrap import wrap
-from geojson2vt.transform import transform_tile
-from geojson2vt.tile import create_tile
+from .convert import convert
+from .clip import clip
+from .wrap import wrap
+from .transform import transform_tile
+from .tile import create_tile
 
 
 def get_default_options():
